@@ -1,0 +1,85 @@
+<mujoco model="HBP_V2_mjcf">
+  <compiler angle="radian" meshdir="assets" autolimits="true" />
+
+  <option timestep="0.001" iterations="30" cone="elliptic" impratio="100" />
+
+  <default>
+    <!-- textset -->
+    <!-- <joint damping="0.1" armature="0.01" frictionloss="0.005"/> -->
+    <position inheritrange="1" timeconst="0.01"/>
+    <!-- <geom friction="0.4" margin="0.001" condim="3"/> -->
+    <!-- text�[text�Fgroup=0 -->
+    <default class="collision">
+      <geom group="0"/>
+    </default>
+    <!-- text�Fgroup=1(text) -->
+    <default class="visual">
+      <geom contype="0" conaffinity="0" group="1"/>
+    </default>
+  </default>
+
+  <asset>
+    <material name="metal" rgba=".9 .95 .95 1" />
+    <material name="black" rgba="0 0 0 1" />
+    <material name="white" rgba="1 1 1 1" />
+    <material name="gray" rgba="0.671705 0.692426 0.774270 1" />
+
+    <mesh name="back_tire" file="back_tire.obj" />
+    <mesh name="body" file="body.obj" />
+    <mesh name="flont_tire_holder" file="flont_tire_holder.obj" />
+    <mesh name="front_tire" file="front_tire.obj" />
+  </asset>
+
+  <worldbody>
+    <body name="body_obj" pos="0 0 0.111">
+      <freejoint />
+      <geom class="visual" type="mesh" mesh="body" rgba="1.0 1.0 1.0 1.0"/>
+      <geom type="mesh" mesh="body" group="0" />
+      <inertial pos="-0.015137 0 -0.012311" mass="0.238073" diaginertia="1.221e-4 4.210e-4 3.801e-4" />
+
+
+      <!-- back_tire -->
+      <body name="back_tire" pos="0.098484 0.0 -0.075">
+        <joint name="back_tire_pitch" type="hinge" pos="0 0 0" axis="0 1 0" limited="false" damping="0.00001" />
+        <inertial pos="-0 -0.001407 -0" mass="0.071977" diaginertia="2.0388694e-5 3.4547509e-5 2.0388698e-5" />
+        <geom class="visual" type="mesh" mesh="back_tire"/>
+        <geom type="mesh" mesh="back_tire" group="0"/>
+      </body>
+
+      <!-- front_tire_holder -->
+      <body name="front_tire_holder" pos="-0.062 0.0 -0.03">
+        <joint name="flont_tire_holder_yaw" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.14159 3.14159" limited="true" damping="0.00001" />
+        <inertial pos="0 0 -0.013803" mass="0.007261" diaginertia="2.248766e-6 1.986811e-6 9.96848e-7" />
+        <geom class="visual" type="mesh" mesh="flont_tire_holder" rgba="1.0 1.0 1.0 1.0" />
+        <geom type="mesh" mesh="flont_tire_holder" group="0" />
+
+        <!-- front_tire -->
+        <body name="front_tire" pos="0.0 0.0 -0.042">
+          <joint name="front_tire_pitch" type="hinge" pos="0 0 0" axis="0 1 0" limited="false" damping="0.00001" />
+          <inertial pos="-0 -0 -0" mass="0.045011" diaginertia="1.3522043e-5 2.6042188e-5 1.3522044e-5" />
+          <geom class="visual" type="mesh" mesh="front_tire" rgba="1.0 1.0 1.0 1.0"/>
+          <geom type="mesh" mesh="front_tire" group="0" />
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <general name="back_tire_actuator" joint="back_tire_pitch" 
+            ctrlrange="-0.042 0.042" ctrllimited="true"
+            dyntype="filter" dynprm="0.0055"
+            gaintype="fixed" gainprm="1"
+            biastype="affine" biasprm="0 -0.000333 0"/>
+    <position name="flont_tire_holder_actuator" joint="flont_tire_holder_yaw" gear="1" kp="100" kv="1" forcerange="-0.021 0.021" forcelimited="true"/>
+  </actuator>
+
+  <contact>
+    <exclude body1="body_obj" body2="back_tire" />
+    <exclude body1="body_obj" body2="front_tire_holder" />
+    <exclude body1="front_tire_holder" body2="front_tire" />
+  </contact>
+
+  <sensor>
+    <!-- Add sensors here if needed -->
+  </sensor>
+</mujoco>

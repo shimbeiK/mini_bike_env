@@ -1,0 +1,80 @@
+<mujoco model="HBP_mjcf">
+  <compiler angle="radian" meshdir="assets" autolimits="true" />
+
+  <option timestep="0.001" iterations="30" cone="elliptic" impratio="100" />
+
+  <default>
+    <!-- textset -->
+    <!-- <joint damping="0.1" armature="0.01" frictionloss="0.005"/> -->
+    <position inheritrange="0" timeconst="0.01"/>
+    <geom friction="0.4" margin="0.001" condim="3"/>
+    <!-- text�[text�Fgroup=0 -->
+    <default class="collision">
+      <geom group="0"/>
+    </default>
+    <!-- text�Fgroup=1(text) -->
+    <default class="visual">
+      <geom contype="0" conaffinity="0" group="1"/>
+    </default>
+  </default>
+
+  <asset>
+    <material name="metal" rgba=".9 .95 .95 1" />
+    <material name="black" rgba="0 0 0 1" />
+    <material name="white" rgba="1 1 1 1" />
+    <material name="gray" rgba="0.671705 0.692426 0.774270 1" />
+
+    <mesh name="body" file="body.obj" />
+    <mesh name="tire_back" file="tire_back.obj" />
+    <mesh name="tire_holder" file="tire_holder.obj" />
+    <mesh name="tire_top" file="tire_top.obj" />
+  </asset>
+
+  <worldbody>
+    <body name="body_obj" pos="0 0 0.0375">
+      <freejoint />
+      <geom class="visual" type="mesh" mesh="body" rgba="1.0 1.0 1.0 1.0" />
+      <geom type="mesh" mesh="body" group="0" />
+      <inertial pos="-0.050997 -0.017947 0.030732" mass="0.245161" diaginertia="2.267e-4 6.820e-4 5.311e-4" />
+
+      <!-- tire_back -->
+      <body name="tire_back" pos="0.0 -0.03 -0.0075">
+        <joint name="tire_back_pitch" type="hinge" pos="0 0 0" axis="0 1 0" limited="false" armature="0.01" frictionloss="0.005" damping="0.001" />
+        <inertial pos="0 0.002773 0" mass="0.0175" diaginertia="5.657063e-6 1.0383774e-5 5.657062e-6" />
+        <geom class="visual" type="mesh" mesh="tire_back" />
+        <geom type="mesh" mesh="tire_back" group="0" />
+      </body>
+
+      <!-- tire_holder -->
+      <body name="tire_holder" pos="-0.105 -0.0205 0.0365">
+        <joint name="tire_holder_yaw" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.14159 3.14159" limited="true" margin="0.0035" armature="0.01" frictionloss="0.005" damping="0.001" />
+        <inertial pos="-0 -0 -0.01725" mass="0.008584" diaginertia="2.66356e-6 2.280561e-6 1.309661e-6" />
+        <geom class="visual" type="mesh" mesh="tire_holder" rgba="1.0 1.0 1.0 1.0"/>
+        <geom type="mesh" mesh="tire_holder" group="0" />
+
+        <!-- tire_top キャスター化-->
+        <body name="tire_top" pos="0.0 -0.0055 -0.04">
+          <joint name="tire_top_pitch" type="hinge" pos="0 0 0" axis="0 1 0" limited="false" armature="0.001" frictionloss="0.005" damping="0.0001" />
+          <inertial pos="0 0.005508 0" mass="0.0185" diaginertia="6.513973e-6 1.2471945e-5 6.513973e-6" />
+          <geom class="visual" type="mesh" mesh="tire_top" rgba="1.0 1.0 1.0 1.0" />
+          <geom type="mesh" mesh="tire_top" group="0" />
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <position name="tire_back_actuator" joint="tire_back_pitch" gear="1" kp="100" kv="1" forcerange="-0.021 0.021" forcelimited="true"/>
+    <position name="tire_holder_actuator" joint="tire_holder_yaw" gear="1" kp="100" kv="1" forcerange="-0.021 0.021" forcelimited="true"/>
+  </actuator>
+
+  <contact>
+    <exclude body1="body_obj" body2="tire_back"/>
+    <exclude body1="body_obj" body2="tire_holder"/>
+    <exclude body1="tire_holder" body2="tire_top"/>
+  </contact>
+
+  <sensor>
+    <!-- Add sensors here if needed -->
+  </sensor>
+</mujoco>
