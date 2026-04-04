@@ -16,7 +16,7 @@ float accelScale, gyroScale;
 
 float ax,ay,az;
 float gx,gy,gz;
-float roll,pitch,yaw;
+float pitch,roll,yaw;
 unsigned long microsNow;
 
 //  imu角速度のローパスフィルタ
@@ -118,7 +118,7 @@ void setup() {
     set_motor_enable(flont_motor_id, true);
     set_motor_enable(back_motor_id, true);
 
-    set_control_mode(flont_motor_id, position_mode);
+    set_control_mode(flont_motor_id, current_mode);
     set_control_mode(back_motor_id, current_mode);
 
     microsPerReading = 1000000 / 25;
@@ -219,7 +219,7 @@ void loop() {
         filtered_gy = sign(filtered_gy)*2;
     }
 
-    // Madgwickfilter(pitch取得)
+    // Madgwickfilter(roll取得)
     microsNow = micros();
     float dt = (float)(microsNow - microsPre) / 1000000.0f;
     if (dt > 0) {
@@ -227,11 +227,11 @@ void loop() {
     }    
 
     filter.updateIMU(gx, gy, gz, ax, ay, az);
-    pitch = -filter.getPitch();
+    roll = -filter.getRoll();
     microsPre = microsNow;
 
     // エンコーダ値取得
-    float flont_wheel_position = (read_position(flont_motor_id)*10 + zero_position) * (2 * M_PI / 360);
+    // float flont_wheel_position = (read_position(flont_motor_id)*10 + zero_position) * (2 * M_PI / 360);
     float back_wheel_speed = read_speed(back_motor_id);
 
     // コントローラ値取得
@@ -255,17 +255,17 @@ void loop() {
 
     // オドメトリ
     float wheel_distance = 0.034;
-    float delta_theta = dt * wheel_radius * back_wheel_speed * tan(flont_wheel_position) / wheel_distance;
-    theta_total += delta_theta;
-    float delta_x = wheel_radius * back_wheel_speed * cos(flont_wheel_position) * dt * cos(theta_total + delta_theta / 2);
-    float delta_y = sign(flont_wheel_position) * sqrt(sq(wheel_radius * back_wheel_speed * dt) - sq(delta_x)) * cos(theta_total);
-    odom_y += delta_y;
+    // float delta_theta = dt * wheel_radius * back_wheel_speed * tan(flont_wheel_position) / wheel_distance;
+    // theta_total += delta_theta;
+    // float delta_x = wheel_radius * back_wheel_speed * cos(flont_wheel_position) * dt * cos(theta_total + delta_theta / 2);
+    // float delta_y = sign(flont_wheel_position) * sqrt(sq(wheel_radius * back_wheel_speed * dt) - sq(delta_x)) * cos(theta_total);
+    // odom_y += delta_y;
 
     // ニューラルネットワークの入力に代入
-    // input[0] = 0.08236867;
-    // input[1] = -0.6337656;
-    // input[2] = 1.6897228;
-    input[0] = pitch*M_PI/180 * k_roll;
+    // input[0] = 0.008039039; //-0.00090969726
+    // input[1] = 0.09512544;
+    // input[2] = 0.306668;
+    input[0] = roll*M_PI/180 * k_roll;
     input[1] = filtered_gy*M_PI/180 * k_rollvel;
     input[2] = back_wheel_speed;
     // if(stick_right_x == 0){
@@ -293,18 +293,18 @@ void loop() {
     // float front_out = output[0]*80 + zero_position;
     // front_out += 15;
     // float back_out = current_max;
-    float back_out = output[1]*current_max*k_tirespd;
+    float back_out = output[0]*current_max*k_tirespd;
     M5.Display.fillRect(OUTPUT_X, OUTPUT_Y, 150, 80, TFT_BLACK);
     M5.Display.setCursor(OUTPUT_X, OUTPUT_Y);
     // 12行すべてを収めるため、文字サイズを少し小さくする
     M5.Display.setTextSize(1.5); 
 
-    Serial.print(">pitch:");
-    Serial.println(pitch);
+    Serial.print(">roll:");
+    Serial.println(roll);
     Serial.print(">f:");
     Serial.println(front_out);
     Serial.print(">b:");
-    Serial.println(back_out);
+    Serial.println(output[0]);
     Serial.print(">rollvel:");
     Serial.println(input[1]*180/M_PI);
     Serial.print(">tire spd:");
@@ -314,7 +314,7 @@ void loop() {
     int start_y = 10; // 画面の上の方（Y=10）から描画スタート
     int step_y = 18;  // 1行ごとの縦の幅
 
-    // M5.Display.setCursor(start_x, start_y); M5.Display.printf("pitch : %.3f", pitch); start_y += step_y;
+    // M5.Display.setCursor(start_x, start_y); M5.Display.printf("roll : %.3f", roll); start_y += step_y;
     // M5.Display.setCursor(start_x, start_y); M5.Display.printf("f : %.3f", front_out); start_y += step_y;
     // M5.Display.setCursor(start_x, start_y); M5.Display.printf("b : %.3f", back_out); start_y += step_y;
     // M5.Display.setCursor(start_x, start_y); M5.Display.printf("imu : %.3f", input[0]); start_y += step_y;
@@ -337,8 +337,9 @@ void loop() {
     }
 
     // モータ制御
-    set_position(flont_motor_id, front_out);
-    set_current(back_motor_id, back_out);
+    // back_out = 460;
+    set_current(flont_motor_id, back_out);
+    set_current(back_motor_id, -back_out);
 
     delay(1.5); // 制御周期を10msにするため
 }
@@ -510,7 +511,7 @@ void run_inference() {
     }
 
     // --- 第3層: layer2(64) -> output(2) ---
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 1; i++) {
         float sum = b3[i];
         for (int j = 0; j < 64; j++) {
             sum += W3[i * 64 + j] * layer2[j];
