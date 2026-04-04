@@ -18,7 +18,7 @@ def to_cpp_array(name, tensor):
     array_str = ", ".join([f"{x:.10f}f" for x in flat_data])
     return f"const float {name}[] = {{{array_str}}};\n"
 
-with open("./two_wheel_robot/forM5stack/parameters.h", "w") as f:
+with open("./real_env/src/parameters.h", "w") as f:
     f.write("#ifndef PARAMETERS_H\n#define PARAMETERS_H\n\n")
     
     # 第1層 (mlp_extractor.policy_net[0])
