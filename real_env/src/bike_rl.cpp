@@ -4,6 +4,10 @@
 #include "parameters.h"
 #include <PS4Controller.h>
 
+#define HISTORY_LENGTH 15
+#define OBS_DIM 3
+#define INPUT_SIZE (HISTORY_LENGTH * OBS_DIM) // 45次元
+
 // sign関数の表現
 int sign(float val) {
     return (0.0 < val) - (val < 0.0);
@@ -16,7 +20,7 @@ float accelScale, gyroScale;
 
 float ax,ay,az;
 float gx,gy,gz;
-float roll,pitch,yaw;
+float pitch,roll,yaw;
 unsigned long microsNow;
 
 //  imu角速度のローパスフィルタ
@@ -72,7 +76,8 @@ float stick_right_x = 0.0;
 float wheel_radius = 0.0155;
 
 // PPOの推論用
-float input[9];   
+float obs_history[INPUT_SIZE]; // 履歴保持用バッファ
+float input[INPUT_SIZE];
 float layer1[64];
 float layer2[64];
 float output[2];  
@@ -99,6 +104,18 @@ float k_roll = 1.0;
 float k_rollvel = 1.0;     
 float k_tirespd = 1.0;
 
+// --- 履歴更新関数 ---
+void update_obs_history(float roll_rad, float gyro_rad, float wheel_spd) {
+    // 既存の履歴を前にずらす (1ステップ分 = 3要素)
+    for (int i = 0; i < (HISTORY_LENGTH - 1) * OBS_DIM; i++) {
+        obs_history[i] = obs_history[i + OBS_DIM];
+    }
+    // 最新の観測値を最後尾に追加
+    obs_history[INPUT_SIZE - 3] = roll_rad * k_roll;
+    obs_history[INPUT_SIZE - 2] = gyro_rad * k_rollvel;
+    obs_history[INPUT_SIZE - 1] = wheel_spd * k_tirespd;
+}
+
 void setup() {
     auto cfg = M5.config();
 
@@ -118,7 +135,7 @@ void setup() {
     set_motor_enable(flont_motor_id, true);
     set_motor_enable(back_motor_id, true);
 
-    set_control_mode(flont_motor_id, position_mode);
+    set_control_mode(flont_motor_id, current_mode);
     set_control_mode(back_motor_id, current_mode);
 
     microsPerReading = 1000000 / 25;
@@ -219,7 +236,7 @@ void loop() {
         filtered_gy = sign(filtered_gy)*2;
     }
 
-    // Madgwickfilter(pitch取得)
+    // Madgwickfilter(roll取得)
     microsNow = micros();
     float dt = (float)(microsNow - microsPre) / 1000000.0f;
     if (dt > 0) {
@@ -227,14 +244,20 @@ void loop() {
     }    
 
     filter.updateIMU(gx, gy, gz, ax, ay, az);
-    pitch = -filter.getPitch();
+    roll = -filter.getRoll();
     microsPre = microsNow;
 
-    // エンコーダ値取得
-    float flont_wheel_position = (read_position(flont_motor_id)*10 + zero_position) * (2 * M_PI / 360);
+// 2. エンコーダ取得
     float back_wheel_speed = read_speed(back_motor_id);
 
-    // コントローラ値取得
+    // 3. 観測履歴の更新 (Pythonのself.obs_history.appendに対応)
+    update_obs_history(current_roll_rad, gyro_rad, back_wheel_speed);
+
+    // 4. 推論
+    // obs_history をそのまま入力としてコピー
+    for(int i=0; i<INPUT_SIZE; i++) input[i] = obs_history[i];
+    run_inference();
+
     if (PS4.isConnected()) {
         if (PS4.LStickY()) {
             int stick_value = PS4.LStickY();
@@ -255,56 +278,19 @@ void loop() {
 
     // オドメトリ
     float wheel_distance = 0.034;
-    float delta_theta = dt * wheel_radius * back_wheel_speed * tan(flont_wheel_position) / wheel_distance;
-    theta_total += delta_theta;
-    float delta_x = wheel_radius * back_wheel_speed * cos(flont_wheel_position) * dt * cos(theta_total + delta_theta / 2);
-    float delta_y = sign(flont_wheel_position) * sqrt(sq(wheel_radius * back_wheel_speed * dt) - sq(delta_x)) * cos(theta_total);
-    odom_y += delta_y;
-
-    // ニューラルネットワークの入力に代入
-    // input[0] = 0.08236867;
-    // input[1] = -0.6337656;
-    // input[2] = 1.6897228;
-    input[0] = pitch*M_PI/180 * k_roll;
-    input[1] = filtered_gy*M_PI/180 * k_rollvel;
-    input[2] = back_wheel_speed;
-    // if(stick_right_x == 0){
-    //     input[3] = -(stick_left_y * target_speed_max / wheel_radius);  // 停止or直進時
-    // }else{
-    //     input[3] = -(0.2 + 0.3*(1-abs(target_angle) / (10 * M_PI / 180))); // 旋回時
-    // }
-    // input[4] = input[3] - input[2];
-    // // input[5] = odom_y;
-    // input[5] = 0;
-    // input[6] = flont_wheel_position;
-    // input[7] = stick_right_x * target_angel_max;
-    // input[8] = (input[7] - input[6]) / target_angel_max;
-    input[3] = 0;  // 停止or直進時
-    input[4] = 0;
-    // input[5] = odom_y;
-    input[5] = 0;
-    input[6] = 0;
-    input[7] = 0;
-    input[8] = 0;
-    run_inference();
-
-
     float front_out = -60+zero_position;
-    // float front_out = output[0]*80 + zero_position;
-    // front_out += 15;
-    // float back_out = current_max;
-    float back_out = output[1]*current_max*k_tirespd;
+    float back_out = output[0]*current_max*k_tirespd;
     M5.Display.fillRect(OUTPUT_X, OUTPUT_Y, 150, 80, TFT_BLACK);
     M5.Display.setCursor(OUTPUT_X, OUTPUT_Y);
     // 12行すべてを収めるため、文字サイズを少し小さくする
     M5.Display.setTextSize(1.5); 
 
-    Serial.print(">pitch:");
-    Serial.println(pitch);
+    Serial.print(">roll:");
+    Serial.println(roll);
     Serial.print(">f:");
     Serial.println(front_out);
     Serial.print(">b:");
-    Serial.println(back_out);
+    Serial.println(output[0]);
     Serial.print(">rollvel:");
     Serial.println(input[1]*180/M_PI);
     Serial.print(">tire spd:");
@@ -313,19 +299,6 @@ void loop() {
     int start_x = 120;
     int start_y = 10; // 画面の上の方（Y=10）から描画スタート
     int step_y = 18;  // 1行ごとの縦の幅
-
-    // M5.Display.setCursor(start_x, start_y); M5.Display.printf("pitch : %.3f", pitch); start_y += step_y;
-    // M5.Display.setCursor(start_x, start_y); M5.Display.printf("f : %.3f", front_out); start_y += step_y;
-    // M5.Display.setCursor(start_x, start_y); M5.Display.printf("b : %.3f", back_out); start_y += step_y;
-    // M5.Display.setCursor(start_x, start_y); M5.Display.printf("imu : %.3f", input[0]); start_y += step_y;
-    // M5.Display.setCursor(start_x, start_y); M5.Display.printf("rollvel : %.3f", input[1]); start_y += step_y;
-    // M5.Display.setCursor(start_x, start_y); M5.Display.printf("tire_spd : %.3f", input[2]); start_y += step_y;
-    // M5.Display.setCursor(start_x, start_y); M5.Display.printf("tgt_vel : %.3f", input[3]); start_y += step_y;
-    // M5.Display.setCursor(start_x, start_y); M5.Display.printf("diff_vel : %.3f", input[4]); start_y += step_y;
-    // M5.Display.setCursor(start_x, start_y); M5.Display.printf("y : %.3f", input[5]); start_y += step_y;
-    // M5.Display.setCursor(start_x, start_y); M5.Display.printf("steer : %.3f", input[6]); start_y += step_y;
-    // M5.Display.setCursor(start_x, start_y); M5.Display.printf("tgt_ang : %.3f", input[7]); start_y += step_y;
-    // M5.Display.setCursor(start_x, start_y); M5.Display.printf("diff_ang: %.3f", input[8]); 
 
     // 他の描画（緊急停止ボタンのON/OFFなど）に影響が出ないよう、文字サイズを元に戻す
     M5.Display.setTextSize(2);
@@ -337,8 +310,9 @@ void loop() {
     }
 
     // モータ制御
-    set_position(flont_motor_id, front_out);
-    set_current(back_motor_id, back_out);
+    // back_out = 460;
+    set_current(flont_motor_id, back_out);
+    set_current(back_motor_id, -back_out);
 
     delay(1.5); // 制御周期を10msにするため
 }
@@ -489,13 +463,12 @@ float read_position(uint8_t address){
     return 0;
 }
 
-// AIの計算実行 (推論)
 void run_inference() {
-    // --- 第1層: input(5) -> layer1(64) ---
+    // --- 第1層: input(45) -> layer1(64) ---
     for (int i = 0; i < 64; i++) {
         float sum = b1[i];
-        for (int j = 0; j < 9; j++) {
-            sum += W1[i * 9 + j] * input[j];
+        for (int j = 0; j < INPUT_SIZE; j++) { // 45回ループ
+            sum += W1[i * INPUT_SIZE + j] * input[j];
         }
         layer1[i] = tanhf(sum); 
     }
@@ -515,7 +488,6 @@ void run_inference() {
         for (int j = 0; j < 64; j++) {
             sum += W3[i * 64 + j] * layer2[j];
         }
-        // output[i] = tanhf(sum);
         output[i] = constrain(sum, -1.0f, 1.0f);
     }
 }
