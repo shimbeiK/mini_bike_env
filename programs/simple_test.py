@@ -15,7 +15,7 @@ from scipy.spatial.transform import Rotation as R
 # XMLファイルを読み込み
 # MODEL_PATH = "two_wheel_robot/sim_env/bike.xml"
 # MODEL_PATH = "mjcf2/scene.xml"
-MODEL_PATH = "models/HBP_V2_5_mjcf/scene.xml"
+MODEL_PATH = "models/HBP_V2_mjcf/scene.xml"
 init_angle = 0  # フォークの初期角度設定(deg)
 model = mujoco.MjModel.from_xml_path(MODEL_PATH)
 data = mujoco.MjData(model)
@@ -40,13 +40,15 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         time.sleep(0.001)
 
         # data.ctrl[1] = -0.084   # 後輪トルク
-        data.ctrl[0] = 0.042   # 後輪トルク
-        print(data.qvel[model.jnt_dofadr[f_wheel_id]])
+        data.ctrl[1] = -0.025   # 後輪トルク
+        # print(data.qvel[model.jnt_dofadr[f_wheel_id]])
+        drive_vel = data.qvel[model.jnt_dofadr[l_wheel_id]]
+        print(drive_vel)
 
         # data.ctrl[2] = -0.021 
         # 2. 1 ステップ進める
         mujoco.mj_step(model, data)
             
-        print(data.qvel[model.jnt_dofadr[l_wheel_id]] * 0.031)
+        # print(data.qvel[model.jnt_dofadr[l_wheel_id]] * 0.031)
 
         viewer.sync()    

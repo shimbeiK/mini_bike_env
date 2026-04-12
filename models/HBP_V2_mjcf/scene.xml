@@ -1,5 +1,5 @@
-<mujoco model="HBP_V2_mjcf scene">
-  <include file="HBP_V2_mjcf.xml"/>
+<mujoco model="HBP_V2_6_mjcf scene">
+  <include file="HBP_V2_6_mjcf.xml"/>
 
   <statistic center="0 0 0.000" extent="0.800000"/>
 

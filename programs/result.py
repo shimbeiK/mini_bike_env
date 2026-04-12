@@ -4,7 +4,7 @@ import time, socket
 import numpy as np
 from stable_baselines3 import PPO, SAC
 from gymnasium import wrappers
-from envs.env_nonsteer_v25 import StandingEnv
+from envs.env_stay_syncro import StandingEnv
 # from bike_env_v3_NonSteer_withrealnoise import StandingEnv
 # from bike_env_v3_turn import StandingEnv
 # from bike_env_v3_integrate import StandingEnv
@@ -17,7 +17,7 @@ def sendTelemetry(name, value):
     sock.sendto(msg.encode(), teleplotAddr)
 # --- 1. Setup the Environment for Evaluation ---
 # We use ONE environment with render_mode="human"
-MODEL_PATH = "models/HBP_V2_5_mjcf/scene.xml"
+MODEL_PATH = "models/HBP_V2_mjcf/scene.xml"
 # MODEL_PATH = "mjcf2/scene.xml"
 m = mujoco.MjModel.from_xml_path(MODEL_PATH)
 d = mujoco.MjData(m)
@@ -56,13 +56,13 @@ while True:
     prev_angular_vel = env.data.qvel[env.model.jnt_dofadr[l_wheel_id]]
     obs, reward, terminated, truncated, info = env.step(action)
     action_num += np.rad2deg(action[0]*np.deg2rad(80))
-    # print(np.rad2deg(obs[0]), obs[1], obs[2], action[0], env.total_odometry)
+    print(np.rad2deg(obs[0]), obs[1], obs[2], action[1], env.total_odometry)
 
     # sendTelemetry("f", front_out)
-    sendTelemetry("b", action[0]*460)
-    sendTelemetry("rollvel", np.rad2deg(obs[1]))
-    sendTelemetry("tire spd", obs[2])
-    sendTelemetry("pitch", np.rad2deg(obs[0]))
+    # sendTelemetry("b", action[0]*460)
+    # sendTelemetry("rollvel", np.rad2deg(obs[1]))
+    # sendTelemetry("tire spd", obs[2])
+    # sendTelemetry("pitch", np.rad2deg(obs[0]))
     prev_odometry = env.total_odometry
     env.render()
     

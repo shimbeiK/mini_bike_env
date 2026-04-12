@@ -4,6 +4,7 @@ class PythonConfig:
     def get_train_cfg():
         train_cfg_dict = {
             "policy": "MlpPolicy",
+            # "policy": "MultiInputPolicy",
             "policy_kwargs": {
                 "net_arch": [64, 64],
                 "log_std_init": -0.3,  # 初期の行動分散を小さくして安定化
@@ -27,14 +28,15 @@ class PythonConfig:
     def get_cfgs():
         env_cfg = {
             # Termination bounds (converted np.pi/6 to approx 30 degrees)
-            "termination_if_roll_greater_than": np.deg2rad(15.0),
+            "termination_if_roll_greater_than": np.deg2rad(45.0),
             "termination_if_posX_greater_than": 10.5, # meters
             "termination_if_posY_greater_than": 10.5, # meters
-            "termination_if_step_count_greater_than": 1000, # steps
+            "termination_if_step_count_greater_than": 2000, # steps
             "frame_skip": 10,  # Number of physics steps per environment step
             
             # Initial Base state
-            "initial_tilt_deg": np.deg2rad(2),      # The 3.7 degree initialization from MuJoCo code
+            # -2 is better
+            "initial_tilt_deg": np.deg2rad(0.0),      # The 3.7 degree initialization from MuJoCo code
             "initial_steer_deg": np.deg2rad(-60),   # The 3.7 degree initialization from MuJoCo code
             "init_steer_noise": False,                    # Whether to add noise to the initial tilt angle
             "initial_torque" : -0.0,                #[-1, 1]
@@ -47,7 +49,7 @@ class PythonConfig:
             
             # Action scale (ネットワーク出力 [-1, 1] をそれぞれの物理量に変換)
             "steering_angle_scale": np.deg2rad(80), # Action 0 のスケール（角度）
-            "drive_torque_scale": 0.021,             # Action 1 のスケール（トルク）            
+            "drive_torque_scale": 0.040,             # Action 1 のスケール（トルク）            
             "clip_actions": 1.0, 
         }
         
@@ -59,14 +61,16 @@ class PythonConfig:
             },
         }
         
+        
+        # 7 is better
         reward_cfg = {
             "survival_bonus": 0.0,      # base reward
-            "upright_posture": 1.5,     # Matches: * 1
+            "upright_posture": 2.0,     # Matches: * 1
             # "angular_vel_penalty": 0.0, # Matches: * 1
-            "odometry_penalty": -8.7,           # Matches:  * 1
+            "odometry_penalty": 7,           # Matches:  * 1
             "steering_penalty": -0, # Matches:  * 1
             "penalty_torque_unstable": - .0,   # Matches: * 1
-            "penalty_torque_abs": -0.0,
+            "penalty_torque_abs": -.4,
             "reward_if_truncated": 0.0, # Matches: * 1
         }
         

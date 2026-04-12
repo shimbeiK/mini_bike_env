@@ -34,12 +34,14 @@
       <freejoint />
       <geom class="visual" type="mesh" mesh="body" rgba="1.0 1.0 1.0 1.0"/>
       <geom type="mesh" mesh="body" group="0" />
-      <inertial pos="0.042941 0.000014 -0.02614" mass="0.2438" diaginertia="2.999e-4 4.445e-4 3.941e-4" />
+      <!-- <inertial pos="0.042941 0.000014 -0.02614" mass="0.2438" diaginertia="2.999e-4 4.445e-4 3.941e-4" /> -->
+      <inertial pos="0.0 0.000014 -0.02" mass="0.2438" diaginertia="2.999e-4 4.445e-4 3.941e-4" />
+      <!-- <inertial pos="0.042941 0.000014 0.04614" mass="0.2438" diaginertia="2.999e-4 4.445e-4 3.941e-4" /> -->
       <site name="imu_site" pos="0.01 0 0.004"/>
       
       <!-- back-tire -->
       <body name="back-tire" pos="0.065528 0.0 -0.045">
-        <joint name="back_tire_pitch" type="hinge" pos="0 0 0" axis="0 1 0" limited="false" damping="0.00001" />
+        <joint name="back_tire_pitch" type="hinge" pos="0 0 0" axis="0 1 0" limited="false" damping="0.00001" armature="0.001"/>
         <inertial pos="0.0 0.0 0.0" mass="0.021" diaginertia="6.595356e-6 1.2702637e-5 6.595358e-6" />
         <geom class="visual" type="mesh" mesh="back-tire"/>
         <geom type="mesh" mesh="back-tire" group="0"  friction="0.9 0.05 0.001" />
@@ -57,7 +59,7 @@
 
   <actuator>
     <general name="back_tire_actuator" joint="back_tire_pitch" 
-            gear="1" forcelimited="true" forcerange="-0.042 0.042"
+            gear="2" forcelimited="true" forcerange="-0.021 0.021"
             dyntype="filter" dynprm="0.0055"
             gaintype="fixed" biastype="affine" biasprm="0 0 -0.000333"/>
   </actuator>

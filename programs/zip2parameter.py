@@ -5,7 +5,7 @@ import os
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 # model_path = os.path.join(script_dir, "..", "results/betters/stop_better/best_model")
-model_path = os.path.join(script_dir, "..", "results/stop_withCon_v3/best_model")
+model_path = os.path.join(script_dir, "..", "results/stop_withCon_v3_0403/best_model")
 
 # モデルの読み込み
 model = PPO.load(model_path)
@@ -18,7 +18,7 @@ def to_cpp_array(name, tensor):
     array_str = ", ".join([f"{x:.10f}f" for x in flat_data])
     return f"const float {name}[] = {{{array_str}}};\n"
 
-with open("./two_wheel_robot/forM5stack/parameters.h", "w") as f:
+with open("./real_env/src/parameters.h", "w") as f:
     f.write("#ifndef PARAMETERS_H\n#define PARAMETERS_H\n\n")
     
     # 第1層 (mlp_extractor.policy_net[0])
