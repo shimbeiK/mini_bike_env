@@ -247,7 +247,6 @@ void loop() {
     roll = -filter.getRoll();
     microsPre = microsNow;
 
-// 2. エンコーダ取得
     float back_wheel_speed = read_speed(back_motor_id);
 
     // 3. 観測履歴の更新 (Pythonのself.obs_history.appendに対応)
@@ -279,6 +278,44 @@ void loop() {
     // オドメトリ
     float wheel_distance = 0.034;
     float front_out = -60+zero_position;
+    // float delta_theta = dt * wheel_radius * back_wheel_speed * tan(flont_wheel_position) / wheel_distance;
+    // theta_total += delta_theta;
+    // float delta_x = wheel_radius * back_wheel_speed * cos(flont_wheel_position) * dt * cos(theta_total + delta_theta / 2);
+    // float delta_y = sign(flont_wheel_position) * sqrt(sq(wheel_radius * back_wheel_speed * dt) - sq(delta_x)) * cos(theta_total);
+    // odom_y += delta_y;
+
+    // ニューラルネットワークの入力に代入
+    // input[0] = 0.008039039; //-0.00090969726
+    // input[1] = 0.09512544;
+    // input[2] = 0.306668;
+    input[0] = roll*M_PI/180 * k_roll;
+    input[1] = filtered_gy*M_PI/180 * k_rollvel;
+    input[2] = back_wheel_speed;
+    // if(stick_right_x == 0){
+    //     input[3] = -(stick_left_y * target_speed_max / wheel_radius);  // 停止or直進時
+    // }else{
+    //     input[3] = -(0.2 + 0.3*(1-abs(target_angle) / (10 * M_PI / 180))); // 旋回時
+    // }
+    // input[4] = input[3] - input[2];
+    // // input[5] = odom_y;
+    // input[5] = 0;
+    // input[6] = flont_wheel_position;
+    // input[7] = stick_right_x * target_angel_max;
+    // input[8] = (input[7] - input[6]) / target_angel_max;
+    input[3] = 0;  // 停止or直進時
+    input[4] = 0;
+    // input[5] = odom_y;
+    input[5] = 0;
+    input[6] = 0;
+    input[7] = 0;
+    input[8] = 0;
+    run_inference();
+
+
+    float front_out = -60+zero_position;
+    // float front_out = output[0]*80 + zero_position;
+    // front_out += 15;
+    // float back_out = current_max;
     float back_out = output[0]*current_max*k_tirespd;
     M5.Display.fillRect(OUTPUT_X, OUTPUT_Y, 150, 80, TFT_BLACK);
     M5.Display.setCursor(OUTPUT_X, OUTPUT_Y);
@@ -483,7 +520,7 @@ void run_inference() {
     }
 
     // --- 第3層: layer2(64) -> output(2) ---
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 1; i++) {
         float sum = b3[i];
         for (int j = 0; j < 64; j++) {
             sum += W3[i * 64 + j] * layer2[j];
