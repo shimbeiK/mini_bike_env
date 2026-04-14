@@ -5,7 +5,7 @@ import os
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 # model_path = os.path.join(script_dir, "..", "results/betters/stop_better/best_model")
-model_path = os.path.join(script_dir, "..", "results/stop_withCon_v3_0403/best_model")
+model_path = os.path.join(script_dir, "..", "results/stop_withCon_v3/best_model")
 
 # モデルの読み込み
 model = PPO.load(model_path)
