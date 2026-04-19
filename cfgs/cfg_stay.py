@@ -67,7 +67,7 @@ class PythonConfig:
             "survival_bonus": 0.0,      # base reward
             "upright_posture": 2.0,     # Matches: * 1
             # "angular_vel_penalty": 0.0, # Matches: * 1
-            "odometry_penalty": 7,           # Matches:  * 1
+            "odometry_penalty": 8,           # Matches:  * 1
             "steering_penalty": -0, # Matches:  * 1
             "penalty_torque_unstable": - .0,   # Matches: * 1
             "penalty_torque_abs": -.4,

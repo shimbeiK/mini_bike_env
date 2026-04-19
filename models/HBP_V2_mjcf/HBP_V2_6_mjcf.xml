@@ -47,10 +47,10 @@
 
       <!-- back_tire -->
       <body name="back_tire" pos="0.053157 0.0 -0.079" quat="0 0 0 1">
-        <joint name="back_tire_pitch" type="hinge" pos="0 0 0" axis="0 -1 0" limited="false" damping="0.00001" armature="1.45e-5"/>
+        <joint name="back_tire_pitch" type="hinge" pos="0 0 0" axis="0 -1 0" limited="false" damping="0.00001"/>
         <inertial pos="-0 -0.001706 -0" mass="0.01531" diaginertia="6.036819e-6 1.130432e-5 6.03682e-6" />
         <geom class="visual" type="mesh" mesh="back_tire"/>
-        <geom type="mesh" mesh="back_tire" group="0" friction="0.9 0.05 0.01"/>
+        <geom type="mesh" mesh="back_tire" group="0" friction="0.7 0.05 0.01"/>
         <geom class="visual" type="box" size="0.005 0.005 0.002" pos="0.02 -0.002 0" rgba="1 0 0 1"/>
       </body>
 
@@ -67,7 +67,7 @@
           <joint name="front_tire_pitch" type="hinge" pos="0 0 0" axis="0 1 0" limited="false" damping="0.00001" />
           <inertial pos="-0 -0 -0" mass="0.045011" diaginertia="1.3522043e-5 2.6042188e-5 1.3522044e-5" />
           <geom class="visual" type="mesh" mesh="front_tire" rgba="1.0 1.0 1.0 1.0"/>
-          <geom type="mesh" mesh="front_tire" group="0"  friction="0.9 0.05 0.01"/>
+          <geom type="mesh" mesh="front_tire" group="0"  friction="0.7 0.05 0.01"/>
           <geom class="visual" type="box" size="0.005 0.005 0.002" pos="0.02 -0.002 0" rgba="1 0 0 1"/>
         </body>
       </body>

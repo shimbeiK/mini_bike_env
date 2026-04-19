@@ -57,8 +57,9 @@ class StandingEnv(gym.Env):
 
         self.latency_step = 3
         self.control_queue = deque([np.zeros(2)] * (self.latency_step + 1), maxlen=self.latency_step+1)
+        self.encoder_queue = deque([np.zeros(1)] * (self.latency_step + 1), maxlen=self.latency_step+1)
         self.latency_step = 0
-        self.encoder_queue = deque([np.zeros(3)] * (self.latency_step + 1), maxlen=self.latency_step+1)
+        self.obs_queue = deque([np.zeros(2)] * (self.latency_step + 1), maxlen=self.latency_step+1)
         self.history_length = 15
         self.obs_history = deque([np.zeros(3, dtype=np.float32)] * self.history_length, maxlen=self.history_length)
 
@@ -112,9 +113,9 @@ class StandingEnv(gym.Env):
         # 5. 重心位置(CoM)のランダム化 (±5mm の変動)
         # X, Y, Z軸それぞれに対して、-0.005m 〜 +0.005m のズレを生じさせる
         ipos_noise = np.random.uniform(-0.005, 0.005, size=self.nominal_ipos[0].shape)
-        max_noise_range = 0.005
-        current_noise_range = max_noise_range * self.curriculum_factor
-        ipos_noise = np.random.uniform(-current_noise_range, current_noise_range, size=self.nominal_ipos[0].shape)
+        # max_noise_range = 0.005
+        # current_noise_range = max_noise_range * self.curriculum_factor
+        # ipos_noise = np.random.uniform(-current_noise_range, current_noise_range, size=self.nominal_ipos[0].shape)
         # self.model.body_ipos[1] = self.nominal_ipos[1] + ipos_noise
         # print(ipos_noise)
 
@@ -135,9 +136,9 @@ class StandingEnv(gym.Env):
         
         angular_vel = self.data.sensor("body_gyro").data[0] + np.random.normal(0, np.deg2rad(0.4))
         self.filtered_gy = -(self.alpha * angular_vel + (1-self.alpha) * self.filtered_gy)
-        self.drive_vel = self.data.qvel[self.model.jnt_dofadr[self.l_wheel_id]]
+        self.drive_vel = self.data.qvel[self.model.jnt_dofadr[self.l_wheel_id]] + np.random.normal(0, np.deg2rad(0.3))
+        # self.obs = steer_pos
         steer_pos = self.data.joint("front_tire_holder").qpos[0]
-        self.obs = steer_pos
         # --- FIX: Ensure the actions are flat numbers (scalars), not arrays ---
         if(self.env_cfg["real_syncro_noise"] == True):
             # self.filtered_gy += np.random.normal(0, np.deg2rad(0.3))
@@ -147,11 +148,12 @@ class StandingEnv(gym.Env):
         else:
             self.filtered_roll = angle[0]
 
-        self.encoder_queue.append(np.array([self.filtered_roll, self.filtered_gy, self.drive_vel]))
-        oldest_data = self.encoder_queue[0]
+        self.obs_queue.append(np.array([self.filtered_roll, self.filtered_gy]))
+        self.encoder_queue.append(np.array([self.drive_vel]))
+        oldest_data = self.obs_queue[0]
         actor_roll = oldest_data[0]
         actor_gyro = oldest_data[1]  
-        actor_drive_vel = oldest_data[2]    
+        actor_drive_vel = self.encoder_queue[0][0]
         current_actor_obs = np.array([actor_roll, actor_gyro, actor_drive_vel], dtype=np.float32)
         self.obs_history.append(current_actor_obs)
 
@@ -198,10 +200,10 @@ class StandingEnv(gym.Env):
         if self.env_cfg["real_syncro_noise"] == True:
             # action_angle += np.random.normal(0, 0.005) * self.MAX_STEER  # ステアリングにノイズを加える
             action_torque += np.random.normal(0, 0.005)  # トルクにノイズを加える
-            if(action_torque >2.457e-4*self.drive_vel+0.0624):
-                action_torque =2.457e-4*self.drive_vel+0.0624
-            elif(action_torque <2.457e-4*self.drive_vel-0.0624):
-                action_torque =2.457e-4*self.drive_vel-0.0624
+            if(action_torque >-2.457e-4*self.drive_vel+0.04):
+                action_torque =-2.457e-4*self.drive_vel+0.04
+            elif(action_torque <-2.457e-4*self.drive_vel-0.04):
+                action_torque =-2.457e-4*self.drive_vel-0.04
             self.control_queue.append(np.array([action_angle, action_torque]))
             # print(action_torque, self.drive_vel)
             action_angle = self.control_queue[0][0]
@@ -242,8 +244,10 @@ class StandingEnv(gym.Env):
         if self.env_cfg["domain_randomization"] == True:
             self._randomize_domain()
             self.torque_gain = np.random.uniform(-0.10, 0.10) * self.MAX_TORQUE
-            self.latency_step = int(np.random.choice(range(0, 1)))
-            self.encoder_queue = deque([np.zeros(3)] * (self.latency_step + 1), maxlen=self.latency_step+1)
+            # self.latency_step = int(np.random.choice(range(2, 3)))
+            # self.control_queue = deque([np.zeros(2)] * (self.latency_step + 1), maxlen=self.latency_step+1)
+            self.latency_step = int(np.random.choice(range(0, 2)))
+            self.obs_queue = deque([np.zeros(2)] * (self.latency_step + 1), maxlen=self.latency_step+1)
         mujoco.mj_resetData(self.model, self.data)
         self.TARGET_VEL = 0.0
         self.data.qpos[8] = self.env_cfg["initial_steer_deg"]
