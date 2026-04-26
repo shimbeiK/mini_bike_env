@@ -60,8 +60,11 @@ class StandingEnv(gym.Env):
         self.encoder_queue = deque([np.zeros(1)] * (self.latency_step + 1), maxlen=self.latency_step+1)
         self.latency_step = 0
         self.obs_queue = deque([np.zeros(2)] * (self.latency_step + 1), maxlen=self.latency_step+1)
-        self.history_length = 15
+        self.history_length = 20
         self.obs_history = deque([np.zeros(3, dtype=np.float32)] * self.history_length, maxlen=self.history_length)
+        actor_obs_dim = 3 * self.history_length  
+        critic_obs_dim = 6  
+
 
         # 1. render_mode を保存する
         self.render_mode = render_mode
@@ -77,10 +80,6 @@ class StandingEnv(gym.Env):
         self.ep_rew_survival = 0.0
         self.ep_rew_upright = 0.0
         self.ep_rew_odometry = 0.0
-
-        self.history_length = 15
-        actor_obs_dim = 3 * self.history_length  
-        critic_obs_dim = 6  
 
         # self.observation_space = spaces.Dict({
         #     "actor_obs": spaces.Box(low=-np.finfo(np.float32).max, high=np.finfo(np.float32).max, shape=(actor_obs_dim,), dtype=np.float32),
@@ -107,16 +106,19 @@ class StandingEnv(gym.Env):
 
         # 2. タイヤと床の摩擦係数のランダム化 (±20%の変動)
         # ※バイクの横滑りやグリップに直結するため重要です
-        friction_noise = np.random.uniform(0.6, 1.3, size=self.nominal_friction.shape)
+        friction_noise = np.random.uniform(0.5, 1.5, size=self.nominal_friction.shape)
         self.model.geom_friction[:] = self.nominal_friction * friction_noise
+
+        damping_noise = np.random.uniform(0.2, 5)
+        self.model.dof_damping[:] = self.nominal_damping * damping_noise
 
         # 5. 重心位置(CoM)のランダム化 (±5mm の変動)
         # X, Y, Z軸それぞれに対して、-0.005m 〜 +0.005m のズレを生じさせる
-        ipos_noise = np.random.uniform(-0.005, 0.005, size=self.nominal_ipos[0].shape)
-        # max_noise_range = 0.005
-        # current_noise_range = max_noise_range * self.curriculum_factor
-        # ipos_noise = np.random.uniform(-current_noise_range, current_noise_range, size=self.nominal_ipos[0].shape)
-        # self.model.body_ipos[1] = self.nominal_ipos[1] + ipos_noise
+        # ipos_noise = np.random.uniform(-0.005, 0.005, size=self.nominal_ipos[0].shape)
+        max_noise_range = 0.003
+        current_noise_range = max_noise_range * self.curriculum_factor
+        ipos_noise = np.random.uniform(-current_noise_range, current_noise_range, size=self.nominal_ipos[0].shape)
+        self.model.body_ipos[1] = self.nominal_ipos[1] + ipos_noise
         # print(ipos_noise)
 
         joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "back_tire_pitch")
@@ -153,10 +155,9 @@ class StandingEnv(gym.Env):
         oldest_data = self.obs_queue[0]
         actor_roll = oldest_data[0]
         actor_gyro = oldest_data[1]  
-        actor_drive_vel = self.encoder_queue[0][0]
+        actor_drive_vel = self.encoder_queue[0][0]    
         current_actor_obs = np.array([actor_roll, actor_gyro, actor_drive_vel], dtype=np.float32)
         self.obs_history.append(current_actor_obs)
-
         self.total_odometry += self.drive_vel * 0.034 * self.DT
 
         return np.concatenate(self.obs_history).astype(np.float32)
@@ -199,7 +200,7 @@ class StandingEnv(gym.Env):
         action_torque = action[1] * self.MAX_TORQUE
         if self.env_cfg["real_syncro_noise"] == True:
             # action_angle += np.random.normal(0, 0.005) * self.MAX_STEER  # ステアリングにノイズを加える
-            action_torque += np.random.normal(0, 0.005)  # トルクにノイズを加える
+            action_torque += np.random.normal(0, 0.0005)  # トルクにノイズを加える
             if(action_torque >-2.457e-4*self.drive_vel+0.04):
                 action_torque =-2.457e-4*self.drive_vel+0.04
             elif(action_torque <-2.457e-4*self.drive_vel-0.04):
@@ -209,9 +210,9 @@ class StandingEnv(gym.Env):
             action_angle = self.control_queue[0][0]
             action_torque = self.control_queue[0][1]
 
-        self.data.ctrl[0] = np.deg2rad(-60)
+        self.data.ctrl[0] = action_angle
         self.data.ctrl[1] = action_torque
-        for i in range(self.frame_skip):
+        for i in range(np.random.choice(range(9, 10))):
             mujoco.mj_step(self.model, self.data)
             # time.sleep(0.002)
                 
@@ -243,11 +244,13 @@ class StandingEnv(gym.Env):
         # configファイル等でオンオフを切り替えられるようにしておくと便利です
         if self.env_cfg["domain_randomization"] == True:
             self._randomize_domain()
-            self.torque_gain = np.random.uniform(-0.10, 0.10) * self.MAX_TORQUE
+            self.MAX_TORQUE = np.random.uniform(0.6, 1.4) * self.env_cfg["drive_torque_scale"] 
+            self.latency_step = 3
             # self.latency_step = int(np.random.choice(range(2, 3)))
-            # self.control_queue = deque([np.zeros(2)] * (self.latency_step + 1), maxlen=self.latency_step+1)
+            self.control_queue = deque([np.zeros(2)] * (self.latency_step + 1), maxlen=self.latency_step+1)
+            self.encoder_queue = deque([np.zeros(1)] * (self.latency_step + 1), maxlen=self.latency_step+1)
             self.latency_step = int(np.random.choice(range(0, 2)))
-            self.obs_queue = deque([np.zeros(2)] * (self.latency_step + 1), maxlen=self.latency_step+1)
+            self.encoder_queue = deque([np.zeros(2)] * (self.latency_step + 1), maxlen=self.latency_step+1)
         mujoco.mj_resetData(self.model, self.data)
         self.TARGET_VEL = 0.0
         self.data.qpos[8] = self.env_cfg["initial_steer_deg"]
